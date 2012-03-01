@@ -68,7 +68,24 @@ def sort_file(name):
     out.close()
 
 
-def generateLineList(datadir, prefix, wl_start, wl_stop, Bfield):
+def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield):
+    ''' This subroutine generates Zeeman-split MOOG line lists (both 
+    strong and weak) '''
+
+    mus = {74.5:1.3, 62.4:1.0895, 53.3:0.9303, 45.0:0.7854, 36.7:0.6405,
+            27.6:0.4813, 15.5:0.2706} #Degrees:radians
+
+    staging_dir = 'stage_'+prefix+'/'
+    print "Feature : ", prefix, ' ', b_dir
+
+    try:
+        os.makedirs(os.path.join(staging_dir,'Parfiles',b_dir))
+        os.makedirs(os.path.join(staging_dir,'Output', b_dir))
+        os.makedirs(os.path.join(staging_dir,'Linelists', b_dir))
+    except:
+        pass
+    write_par_file(wl_start, wl_stop, staging_dir, b_dir, prefix, mus)
+
     weak_file = '/home/deen/Code/python/StarFormation/MOOG/linelists/VALD_lines/atomic_corrected.zeeman'
     strong_file = '/home/deen/Code/python/StarFormation/MOOG/linelists/VALD_lines/strongLines.dat'
     molecules = '/home/deen/Code/python/StarFormation/MOOG/linelists/VALD_lines/molecular_corrected.dat'
@@ -124,92 +141,24 @@ def generateLineList(datadir, prefix, wl_start, wl_stop, Bfield):
 
     strongLines.sort()
 
-    strong_line_limit = 400
+    sfn = os.path.join(staging_dir, 'Linelists', b_dir,
+            prefix+'_strong_linelist.out')
+    outfile = open(sfn, 'w')
 
-    # Longitudinal line list:
-    zeeman_polarization = ['FULL']
-    #zeeman_polarization = ['LONG', 'TRANS', 'MU_'+str(mu)]
+    for strongLine in strongLines:
+        strongLine.dump(out=outfile, mode='MOOG')
+    outfile.close()
+    sort_file(sfn)
 
-    for zp in zeeman_polarization:
-        try:
-            os.makedirs(os.path.join(datadir,zp))
-        except:
-            pass
-        try:
-            os.makedirs(os.path.join(datadir,zp,'output'))
-        except:
-            pass
+    wfn = os.path.join(staging_dir, 'Linelists', b_dir,
+            prefix+'_weak_linelist.out')
+    weakfile = open(wfn, 'w')
+    for weakLine in weakLines:
+        if not(weakLine in strongLines):
+            weakLine.dump(out=weakfile, mode='MOOG')
 
-        i = 0
-        j = 0
-        strong_file_counter = 0
-        sfn = os.path.join(datadir,zp)+'/'+prefix+'strong_linelist_'+
-              str(strong_file_counter)+'.out'
-        outfile = open(sfn, 'w')
-        strong_line_counter = 0
-        breakpoints = []
-        breakpoints.append(weakLines[0].wl)
-
-        while i < len(strongLines):
-            if (strong_line_counter + 
-                    len(strongLines[i].zeeman[zp][0])) < strong_line_limit:
-                strongLines[i].dump(out=outfile, zeeman=zp, mode='MOOG')
-                strong_line_counter += len(strongLines[i].zeeman[zp][0])
-                i = i + 1
-            else:
-                breakpoints.append(numpy.mean([strongLines[i].wl,
-                    strongLines[i-1].wl]))
-                j = i
-                while ( (strong_line_counter < strong_line_limit) &
-                        (j < len(strongLines) ) ):
-                    strongLines[j].dump(out=outfile, mode='MOOG')
-                    strong_line_counter += 1
-                    j += 1
-                outfile.close()
-                sort_file(sfn)
-
-                wfn = os.path.join(datadir,zp)+'/'+prefix+'weak_linelist_'+
-                          str(strong_file_counter)+'.out'
-                weakfile = open(wfn, 'w')
-                bm = scipy.where( (weakLines > breakpoints[-2]) &
-                        (weakLines < breakpoints[-1]) )[0]
-                if len(bm) == 0:
-                    weakfile.write('%10.3f%10s%10.3f%10.3f\n' %
-                            (numpy.mean([breakpoints[-2], breakpoints[-1]]),
-                            26.0, 6.0, -8.0))
-                for k in bm:
-                    if not(weakLines[k] in strongLines):
-                        weakLines[k].dump(out=weakfile, zeeman=zp, mode='MOOG')
-
-                weakfile.close()
-                sort_file(wfn)
-            
-
-                write_par_file(breakpoints[-2], breakpoints[-1], datadir,
-                        prefix, strong_file_counter, zp)
-
-                strong_file_counter += 1
-                sfn=os.path.join(datadir,zp)+'/'+prefix+'strong_linelist_'+
-                        str(strong_file_counter)+'.out'
-                outfile = open(sfn, 'w')
-                strongLines[i-1].dump(out=outfile, mode='MOOG')
-                strong_line_counter = 1
- 
-        outfile.close()
-        breakpoints.append(weakLines[-1].wl)
-        write_par_file(breakpoints[-2], breakpoints[-1], datadir, prefix,
-                strong_file_counter,zp)
-
-        wfn = os.path.join(datadir,zp)+'/'+prefix+'weak_linelist_'+
-                str(strong_file_counter)+'.out'
-        weakfile = open(wfn, 'w')
-
-        for k in range(len(weakLines)):
-            if not(weakLines[k] in strongLines):
-                weakLines[k].dump(out=weakfile, zeeman=zp, mode='MOOG')
-        
-        weakfile.close()
-        sort_file(wfn)
+    weakfile.close()
+    sort_file(wfn)
 
 #datadir = raw_input("Enter output directory :")
 #prefix = raw_input("Enter prefix :")

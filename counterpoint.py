@@ -3,35 +3,39 @@ import numpy
 import os
 import MOOGTools
 
-def write_par_file(wl_start, wl_stop, datadir, prefix, index, zeeman_prefix):
-    outfile_name = os.path.join(datadir, zeeman_prefix)+'/'+
-                   prefix+str(index)+'.par'
+def write_par_file(wl_start, wl_stop, stage_dir, prefix, theta=-99.0):
+    outfile_name = os.path.join(stage_dir,'Parfiles',b_dir,prefix+'.par')
     pf = open(outfile_name, 'w')
 
     stronglines = True
 
     pf.write('gridsyn\n')
     pf.write('terminal      \'x11\'\n')
-    pf.write('summary_out   \'./output/summary.out\'\n')
-    pf.write('standard_out  \'./output/out1\'\n')
-    pf.write('lines_in      \'./'+prefix+'weak_linelist_'+str(index)+'.out\'\n')
+    pf.write('summary_out   \'../../Output/'+b_dir+'/summary.out\'\n')
+    pf.write('smoothed_out  \'../../Output/'+b_dir+'/junk.out\'\n')
+    pf.write('standard_out  \'../../Output/'+b_dir+'/out1\'\n')
+    pf.write('lines_in      \'../../Linelists/'+b_dir+'/'+prefix
+            +'weak_linelist_.out\'\n')
     if stronglines:
-        pf.write('stronglines_in      \'./'+prefix+
-                 'strong_linelist_'+str(index)+'.out\'\n')
+        pf.write('stronglines_in      \'../../Linelists/'+b_dir+'/'+prefix+
+                 'strong_linelist.out\'\n')
         pf.write('strong          1\n')
     pf.write('atmosphere      1\n')
     pf.write('molecules       2\n')
     pf.write('lines           1\n')
     pf.write('damping         0\n')
     pf.write('freeform        0\n')
-    pf.write('flux/int        0\n')
+    if (theta != -99.0):
+        pf.write('flux/int        1\n')
+    else:
+        pf.write('flux/int        0\n')
     pf.write('plot            1\n')
     pf.write('synlimits\n')
     pf.write('                '+str(wl_start)+' '+str(wl_stop)+' 0.05 1.00\n')
     pf.write('plotpars        1\n')
-    pf.write('                '+str(wl_start)+' '+str(wl_stop)+' 0.02 1.01\n')
+    pf.write('                '+str(wl_start)+' '+str(wl_stop)+' 0.05 1.01\n')
     pf.write('                0.0 0.000 0.000 1.00\n')
-    pf.write('                g 0.250 0.00 0.00 0.00 0.00\n')
+    pf.write('                g 0.000 0.00 0.00 0.00 0.00\n')
     
     run_number = 1
 
@@ -45,10 +49,11 @@ def write_par_file(wl_start, wl_stop, datadir, prefix, index, zeeman_prefix):
         #    gravs = range(300, 550, 50)
         for G in gravs:
             pf.write('RUN            '+str(run_number)+'\n')
-            pf.write('smoothed_out   \'./output/'+prefix+
-                    'MARCS_T'+str(T)+'G'+str(G)+'_'+str(index)+'.moog\'\n')
-            pf.write('hardpost_out   \'./output/dummy.ps\'\n')
-            pf.write('model_in       \'../../../../atmospheres/MARCS/MARCS_T'+
+            pf.write('stokes_out   \'../../Output/'+b_dir+'/'+prefix+
+                 '_THETA_'+str(angle)+'_MARCS_T'+str(T)+'G'+str(G)+'.moog\'\n')
+            pf.write('mu            %10.4f\n' % numpy.cos(numpy.radians(angle)))
+            pf.write('hardpost_out   \'../../Output/'+b_dir+'/dummy.ps\'\n')
+            pf.write('model_in       \'../../Atmospheres/MARCS/MARCS_T'+
                     str(T)+'_G'+str(G/100.0)+'_M0.0_t1.0.md\'\n')
             pf.write('abundances     1  1\n')
             pf.write('    12      0.0\n')
@@ -86,9 +91,9 @@ def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield):
         pass
     write_par_file(wl_start, wl_stop, staging_dir, b_dir, prefix, mus)
 
-    weak_file = '/home/deen/Code/python/StarFormation/MOOG/linelists/VALD_lines/atomic_corrected.zeeman'
-    strong_file = '/home/deen/Code/python/StarFormation/MOOG/linelists/VALD_lines/strongLines.dat'
-    molecules = '/home/deen/Code/python/StarFormation/MOOG/linelists/VALD_lines/molecular_corrected.dat'
+    weak_file = '/home/deen/Data/MoogStokes/VALD_lines/atomic_corrected.zeeman'
+    strong_file = '/home/deen/Data/MoogStokes/VALD_lines/strongLines.dat'
+    molecules = '/home/deen/Data/MoogStokes/VALD_lines/molecular_corrected.dat'
 
     weakLines = []
 
@@ -167,7 +172,7 @@ def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield):
 #Bfield = float(raw_input("Enter Magnetic Field (in Gauss) :"))*1e-4
 
 Bfields = numpy.arange(0, 4.5, 0.5)
-prefixes = ['f1_', 'f2_', 'f3_', 'f4_']
+prefixes = ['line1_', 'line2_', 'line3_', 'line4_']
 wl_starts = [1.15, 1.48, 2.17, 2.24]
 wl_stops = [1.22, 1.52, 2.23, 2.31]
 
@@ -176,6 +181,6 @@ for B in [0.0, 2.0]:
         prefix = feature[0]
         wl_start = feature[1]
         wl_stop = feature[2]
-        datadir = 'test_B_'+str(B)+'kG'
-        generateLineList(datadir, prefix, wl_start*10000.0,
+        B_dir = 'B_'+str(B)+'kG'
+        generateLineList(B_dir, prefix, wl_start*10000.0,
                 wl_stop*10000.0, B/10.0)

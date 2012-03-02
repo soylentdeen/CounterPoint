@@ -2,8 +2,10 @@ import scipy
 import numpy
 import os
 import MOOGTools
+import AstroUtils
 
-def write_par_file(wl_start, wl_stop, stage_dir, prefix, theta=-99.0):
+def write_par_file(wl_start, wl_stop, stage_dir, prefix, theta=-99.0,
+        temps=None, gravs=None):
     outfile_name = os.path.join(stage_dir,'Parfiles',b_dir,prefix+'.par')
     pf = open(outfile_name, 'w')
 
@@ -39,14 +41,12 @@ def write_par_file(wl_start, wl_stop, stage_dir, prefix, theta=-99.0):
     
     run_number = 1
 
-    temps = range(2500, 4100, 100)+range(4250, 6250, 250)
-    gravs = range(300, 550, 50)
+    if (not temps):
+        temps = range(2500, 4100, 100)+range(4250, 6250, 250)
+    if (not gravs):
+        gravs = range(300, 550, 50)
     
     for T in temps:
-        #if T < 4000:
-        #    gravs = range(300, 600, 50)
-        #else:
-        #    gravs = range(300, 550, 50)
         for G in gravs:
             pf.write('RUN            '+str(run_number)+'\n')
             pf.write('stokes_out   \'../../Output/'+b_dir+'/'+prefix+
@@ -91,9 +91,11 @@ def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield):
         pass
     write_par_file(wl_start, wl_stop, staging_dir, b_dir, prefix, mus)
 
-    weak_file = '/home/deen/Data/MoogStokes/VALD_lines/atomic_corrected.zeeman'
-    strong_file = '/home/deen/Data/MoogStokes/VALD_lines/strongLines.dat'
-    molecules = '/home/deen/Data/MoogStokes/VALD_lines/molecular_corrected.dat'
+    # Load in configuration file
+    config = AstroUtils.parse_config('cp.cfg')
+    weak_file = config['weak_file']
+    strong_file = config['strong_file']
+    molecules = config['molecules']
 
     weakLines = []
 

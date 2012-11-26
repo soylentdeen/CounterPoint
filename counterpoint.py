@@ -4,33 +4,37 @@ import os
 import MOOGTools
 import AstroUtils
 
-def write_par_file(wl_start, wl_stop, stage_dir, prefix, theta=-99.0,
-        temps=None, gravs=None):
-    outfile_name = os.path.join(stage_dir,'Parfiles',b_dir,prefix+'.par')
+def write_par_file(wl_start, wl_stop, stage_dir, b_dir, prefix,
+        temps=None, gravs=None, **kwargs):
+    outfile_name = os.path.join(stage_dir,'Parfiles',b_dir,'batch.par')
     pf = open(outfile_name, 'w')
 
     stronglines = True
 
-    pf.write('gridsyn\n')
+    pf.write('gridstokes\n')
     pf.write('terminal      \'x11\'\n')
     pf.write('summary_out   \'../../Output/'+b_dir+'/summary.out\'\n')
     pf.write('smoothed_out  \'../../Output/'+b_dir+'/junk.out\'\n')
     pf.write('standard_out  \'../../Output/'+b_dir+'/out1\'\n')
+    pf.write('atmos_dir     \'/home/deen/Data/Atmospheres/MARCS/\'\n')
+    pf.write('out_dir       \'../../Output/'+b_dir+'/\'\n')
     pf.write('lines_in      \'../../Linelists/'+b_dir+'/'+prefix
-            +'weak_linelist_.out\'\n')
+            +'_weak_linelist.out\'\n')
     if stronglines:
         pf.write('stronglines_in      \'../../Linelists/'+b_dir+'/'+prefix+
-                 'strong_linelist.out\'\n')
+                 '_strong_linelist.out\'\n')
         pf.write('strong          1\n')
     pf.write('atmosphere      1\n')
     pf.write('molecules       2\n')
     pf.write('lines           1\n')
     pf.write('damping         0\n')
     pf.write('freeform        0\n')
-    if (theta != -99.0):
-        pf.write('flux/int        1\n')
-    else:
-        pf.write('flux/int        0\n')
+    pf.write('ncells          695\n')
+    pf.write('nrings          23\n')
+    #if (theta != -99.0):
+    #    pf.write('flux/int        1\n')
+    #else:
+    #    pf.write('flux/int        0\n')
     pf.write('plot            1\n')
     pf.write('synlimits\n')
     pf.write('                '+str(wl_start)+' '+str(wl_stop)+' 0.05 1.00\n')
@@ -49,12 +53,11 @@ def write_par_file(wl_start, wl_stop, stage_dir, prefix, theta=-99.0,
     for T in temps:
         for G in gravs:
             pf.write('RUN            '+str(run_number)+'\n')
-            pf.write('stokes_out   \'../../Output/'+b_dir+'/'+prefix+
-                 '_THETA_'+str(angle)+'_MARCS_T'+str(T)+'G'+str(G)+'.moog\'\n')
-            pf.write('mu            %10.4f\n' % numpy.cos(numpy.radians(angle)))
+            pf.write('stokes_out   \''+prefix+
+                    '_MARCS_T'+str(T)+'G'+str(G)+'\'\n')
             pf.write('hardpost_out   \'../../Output/'+b_dir+'/dummy.ps\'\n')
-            pf.write('model_in       \'../../Atmospheres/MARCS/MARCS_T'+
-                    str(T)+'_G'+str(G/100.0)+'_M0.0_t1.0.md\'\n')
+            pf.write('model_in       \'MARCS_T'+
+                    str(T)+'_G'+str(G/100.0)+'_M0.0_t2.0.md\'\n')
             pf.write('abundances     1  1\n')
             pf.write('    12      0.0\n')
             run_number += 1
@@ -73,12 +76,9 @@ def sort_file(name):
     out.close()
 
 
-def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield):
+def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield, **kwargs):
     ''' This subroutine generates Zeeman-split MOOG line lists (both 
     strong and weak) '''
-
-    mus = {74.5:1.3, 62.4:1.0895, 53.3:0.9303, 45.0:0.7854, 36.7:0.6405,
-            27.6:0.4813, 15.5:0.2706} #Degrees:radians
 
     staging_dir = 'stage_'+prefix+'/'
     print "Feature : ", prefix, ' ', b_dir
@@ -89,7 +89,7 @@ def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield):
         os.makedirs(os.path.join(staging_dir,'Linelists', b_dir))
     except:
         pass
-    write_par_file(wl_start, wl_stop, staging_dir, b_dir, prefix, mus)
+    write_par_file(wl_start, wl_stop, staging_dir, b_dir, prefix, **kwargs)
 
     # Load in configuration file
     config = AstroUtils.parse_config('cp.cfg')
@@ -125,6 +125,20 @@ def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield):
             DE = float(l[4])
             weakLines.append(MOOGTools.spectral_Line(wave, species, exp_pot,
                 loggf, DissE=DE))
+
+    if ( len(weakLines) == 0 ):
+        wave = (wl_start+wl_stop)/2.0
+        species = 26.0
+        exp_pot = 9.99
+        loggf = -9.99
+        Jlow = 1.0
+        Jup = 1.0
+        glow = 0.1
+        gup = 0.1
+        VdW = 0.0
+        weakLines.append(MOOGTools.spectral_Line(wave, species, exp_pot,
+            loggf, Jlow=Jlow, Jup=Jup, glow=glow, gup=gup, VdW=VdW))
+        weakLines[-1].zeeman_splitting(Bfield)
 
     weakLines.sort()
 
@@ -173,16 +187,28 @@ def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield):
 #wl_stop = float(raw_input("Enter stopping wavelength :"))*10000.0
 #Bfield = float(raw_input("Enter Magnetic Field (in Gauss) :"))*1e-4
 
-Bfields = numpy.arange(0, 4.5, 0.5)
-prefixes = ['line1_', 'line2_', 'line3_', 'line4_']
-wl_starts = [1.15, 1.48, 2.17, 2.24]
-wl_stops = [1.22, 1.52, 2.23, 2.31]
+#Bfields = numpy.arange(4.0, 4.5, 1.0)
+Bfields = numpy.array([0.0, 0.1, 5.0, 20.0])
+prefixes = ['wade']
+wl_starts = [0.49225]
+wl_stops = [0.49255]
+#prefixes = ['line_1','line_2', 'line_3', 'line_4', 'line_5', 'line_6',
+#        'line_7', 'line_8', 'line_9', 'line_10']
+#wl_starts = [1.167, 1.175, 1.181, 1.195, 1.206, 1.500, 1.514, 2.203, 2.204,
+#        2.279]
+#wl_stops = [1.171, 1.179, 1.185, 1.199, 1.210, 1.504, 1.518, 2.208, 2.208,
+#        2.283]
 
-for B in [0.0, 2.0]:
+#temps = [3000, 3500, 4000, 4500, 5000]
+#gravs = [300, 400, 500]
+temps = [7500]
+gravs = [400]
+
+for B in Bfields:
     for feature in zip(prefixes, wl_starts, wl_stops):
         prefix = feature[0]
         wl_start = feature[1]
         wl_stop = feature[2]
         B_dir = 'B_'+str(B)+'kG'
         generateLineList(B_dir, prefix, wl_start*10000.0,
-                wl_stop*10000.0, B/10.0)
+                wl_stop*10000.0, B/10.0, temps=temps, gravs=gravs)

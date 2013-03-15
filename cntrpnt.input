@@ -1,0 +1,13 @@
+#BField Strength
+BFields = 0.0, 1.0, 2.0
+
+#prefixes 
+prefixes = Tango
+
+#wavelength ranges
+wl_starts = 2.225
+wl_stops = 2.231
+
+temps = 3600, 3700
+gravs = 400
+

@@ -1,7 +1,7 @@
 import scipy
 import numpy
 import os
-import MOOGTools
+import MoogTools
 import AstroUtils
 
 def write_par_file(wl_start, wl_stop, stage_dir, b_dir, prefix,
@@ -89,43 +89,20 @@ def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield, **kwargs):
         os.makedirs(os.path.join(staging_dir,'Linelists', b_dir))
     except:
         pass
-    write_par_file(wl_start, wl_stop, staging_dir, b_dir, prefix, **kwargs)
+    MoogTools.write_par_file(wl_start, wl_stop, staging_dir, b_dir, prefix,
+            mode='gridstokes', strongLines=True, **kwargs)
 
     # Load in configuration file
     config = AstroUtils.parse_config('cp.cfg')
     weak_file = config['weak_file']
     strong_file = config['strong_file']
     molecules = config['molecules']
+    VALD_list = config['VALD_file']
 
-    weakLines = []
+    strongLines, weakLines = MoogTools.parse_VALD(VALD_list, strong_file,
+            molecules, wl_start, wl_stop, Bfield)
 
-    for line in open(weak_file, 'r').readlines():
-        l = line.split()
-        if ( (float(l[0]) > wl_start) & (float(l[0]) < wl_stop) ):
-            wave = float(l[0])
-            species = float(l[1])
-            exp_pot = float(l[2])
-            loggf = float(l[3])
-            Jlow = float(l[4])
-            Jup = float(l[5])
-            glow = float(l[6])
-            gup = float(l[7])
-            VdW = float(l[9])
-            weakLines.append(MOOGTools.spectral_Line(wave, species, exp_pot,
-                loggf, Jlow=Jlow, Jup=Jup, glow=glow, gup=gup, VdW=VdW))
-            weakLines[-1].zeeman_splitting(Bfield)
-
-    for line in open(molecules, 'r').readlines():
-        l = line.split()
-        if ( (float(l[0]) > wl_start) & (float(l[0]) < wl_stop) ):
-            wave = float(l[0])
-            species = float(l[1])
-            exp_pot = float(l[2])
-            loggf = float(l[3])
-            DE = float(l[4])
-            weakLines.append(MOOGTools.spectral_Line(wave, species, exp_pot,
-                loggf, DissE=DE))
-
+    '''
     if ( len(weakLines) == 0 ):
         wave = (wl_start+wl_stop)/2.0
         species = 26.0
@@ -139,31 +116,10 @@ def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield, **kwargs):
         weakLines.append(MOOGTools.spectral_Line(wave, species, exp_pot,
             loggf, Jlow=Jlow, Jup=Jup, glow=glow, gup=gup, VdW=VdW))
         weakLines[-1].zeeman_splitting(Bfield)
-
-    weakLines.sort()
-
-    strongLines = []
-
-    for line in open(strong_file, 'r').readlines():
-        l = line.split()
-        if ( (float(l[0]) > wl_start) & (float(l[0]) < wl_stop) ):
-            wave = float(l[0])
-            species = float(l[1])
-            exp_pot = float(l[2])
-            loggf = float(l[3])
-            Jlow = float(l[4])
-            Jup = float(l[5])
-            glow = float(l[6])
-            gup = float(l[7])
-            VdW = float(l[9])
-            strongLines.append(MOOGTools.spectral_Line(wave, species, exp_pot,
-                loggf, Jlow=Jlow, Jup=Jup, glow=glow, gup=gup, VdW=VdW))
-            strongLines[-1].zeeman_splitting(Bfield)
-
-    strongLines.sort()
+    '''
 
     sfn = os.path.join(staging_dir, 'Linelists', b_dir,
-            prefix+'_strong_linelist.out')
+            prefix+'_strong_linelist.stokes')
     outfile = open(sfn, 'w')
 
     for strongLine in strongLines:
@@ -172,41 +128,64 @@ def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield, **kwargs):
     sort_file(sfn)
 
     wfn = os.path.join(staging_dir, 'Linelists', b_dir,
-            prefix+'_weak_linelist.out')
+            prefix+'_weak_linelist.stokes')
     weakfile = open(wfn, 'w')
     for weakLine in weakLines:
-        if not(weakLine in strongLines):
-            weakLine.dump(out=weakfile, mode='MOOG')
+        weakLine.dump(out=weakfile, mode='MOOG')
 
     weakfile.close()
     sort_file(wfn)
 
-#datadir = raw_input("Enter output directory :")
-#prefix = raw_input("Enter prefix :")
-#wl_start = float(raw_input("Enter starting wavelength: "))*10000.0
-#wl_stop = float(raw_input("Enter stopping wavelength :"))*10000.0
-#Bfield = float(raw_input("Enter Magnetic Field (in Gauss) :"))*1e-4
+    if Bfield==0.0:
+        MoogTools.write_par_file(wl_start, wl_stop, staging_dir, b_dir,
+                prefix, mode='gridsyn', strongLines=True, **kwargs)
 
-#Bfields = numpy.arange(4.0, 4.5, 1.0)
-Bfields = numpy.array([0.0, 0.1, 5.0, 20.0])
-prefixes = ['wade']
-wl_starts = [0.49225]
-wl_stops = [0.49255]
-#prefixes = ['line_1','line_2', 'line_3', 'line_4', 'line_5', 'line_6',
-#        'line_7', 'line_8', 'line_9', 'line_10']
-#wl_starts = [1.167, 1.175, 1.181, 1.195, 1.206, 1.500, 1.514, 2.203, 2.204,
-#        2.279]
-#wl_stops = [1.171, 1.179, 1.185, 1.199, 1.210, 1.504, 1.518, 2.208, 2.208,
-#        2.283]
+        sfn = os.path.join(staging_dir, 'Linelists', b_dir,
+                prefix+'_strong_linelist.scalar')
+        outfile = open(sfn, 'w')
 
-#temps = [3000, 3500, 4000, 4500, 5000]
-#gravs = [300, 400, 500]
-temps = [7500]
-gravs = [400]
+        for strongLine in strongLines:
+            strongLine.dump(out=outfile, mode='MOOGSCALAR')
+        outfile.close()
+        sort_file(sfn)
+
+        wfn = os.path.join(staging_dir, 'Linelists', b_dir,
+                prefix+'_weak_linelist.scalar')
+        outfile = open(wfn, 'w')
+
+        for weakLine in weakLines:
+            weakLine.dump(out=outfile, mode='MOOGSCALAR')
+        outfile.close()
+        sort_file(sfn)
+
+
+
+
+parameters = AstroUtils.parse_config('cntrpnt.input')
+if type(parameters["BFields"])==str:
+    Bfields = numpy.array(parameters["BFields"].split(','), dtype = float)
+else:
+    Bfields = numpy.array(parameters["BFields"])
+prefixes = numpy.array(parameters["prefixes"].split(','), dtype=str)
+if type(parameters["wl_starts"])== str:
+    wl_starts = numpy.array(parameters["wl_starts"].split(','), dtype=float)
+    wl_stops = numpy.array(parameters["wl_stops"].split(','), dtype=float)
+else:
+    wl_starts = numpy.array([parameters["wl_starts"]], dtype=float)
+    wl_stops = numpy.array([parameters["wl_stops"]], dtype=float)
+if type(parameters["temps"])==str:
+    temps = numpy.array(parameters["temps"].split(','), dtype=int).tolist()
+else:
+    temps = numpy.array([parameters["temps"]]).tolist()
+if type(parameters["gravs"])==str:
+    gravs = numpy.array(parameters["gravs"].split(','), dtype=int).tolist()
+else:
+    gravs = numpy.array([parameters["gravs"]]).tolist()
+
 
 for B in Bfields:
     for feature in zip(prefixes, wl_starts, wl_stops):
-        prefix = feature[0]
+        prefix = feature[0].strip()
         wl_start = feature[1]
         wl_stop = feature[2]
         B_dir = 'B_'+str(B)+'kG'

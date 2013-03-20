@@ -3,6 +3,7 @@ import numpy
 import os
 import MoogTools
 import AstroUtils
+import sys
 
 def write_par_file(wl_start, wl_stop, stage_dir, b_dir, prefix,
         temps=None, gravs=None, **kwargs):
@@ -159,9 +160,7 @@ def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield, **kwargs):
         sort_file(sfn)
 
 
-
-
-parameters = AstroUtils.parse_config('cntrpnt.input')
+parameters = AstroUtils.parse_config(sys.argv[-1])
 if type(parameters["BFields"])==str:
     Bfields = numpy.array(parameters["BFields"].split(','), dtype = float)
 else:

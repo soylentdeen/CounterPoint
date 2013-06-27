@@ -1,0 +1,13 @@
+#BField Strength
+BFields = 0.0, 1.0
+
+#prefixes 
+prefixes = test
+
+#wavelength ranges
+wl_starts = 2.17
+wl_stops = 2.24
+
+temps = 4000, 4250, 4500
+gravs = 350, 400, 450
+

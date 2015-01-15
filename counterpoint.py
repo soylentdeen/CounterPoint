@@ -43,16 +43,24 @@ def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield, **kwargs):
     strong_file = config['strong_file']
     molecules = config['molecules']
     VALD_list = config['VALD_file']
+    gf_corrections = config['gf_file']
 
     strongLines, weakLines = MoogTools.parse_VALD(VALD_list, strong_file,
-            wl_start, wl_stop, Bfield)
+            wl_start, wl_stop, Bfield, gf_corrections)
 
     #     CO
-    #weakLines = numpy.append(weakLines, MoogTools.parse_HITRAN(
-    #         molecules+'05_HITEMP2010new.par', wl_start, wl_stop, Bfield))
+    weakLines = numpy.append(weakLines, MoogTools.parse_HITRAN(
+             molecules+'05_HITEMP2010new.par', wl_start, wl_stop, Bfield,
+             gf_corrections, weedout=2.5))
     #     OH
-    #weakLines = numpy.append(weakLines, MoogTools.parse_HITRAN(
-    #         molecules+'13_HITEMP2010.par', wl_start, wl_stop, Bfield))
+    weakLines = numpy.append(weakLines, MoogTools.parse_HITRAN(
+             molecules+'13_HITEMP2010.par', wl_start, wl_stop, Bfield,
+             gf_corrections))
+
+    #     CN
+    weakLines = numpy.append(weakLines, MoogTools.parse_Plez_CN(
+             molecules+'CN_Plez_linelist.dat', wl_start, wl_stop, Bfield,
+             gf_corrections))
 
     sfn = os.path.join(staging_dir, 'Linelists', b_dir,
             prefix+'_strong_linelist.stokes')
@@ -97,9 +105,9 @@ def generateLineList(b_dir, prefix, wl_start, wl_stop, Bfield, **kwargs):
 
 parameters = AstroUtils.parse_config(sys.argv[-1])
 if type(parameters["BFields"])==str:
-    Bfields = numpy.array(parameters["BFields"].split(','), dtype = float)
+    Bfields = numpy.array(parameters["BFields"].split(','), dtype = float).tolist()
 else:
-    Bfields = numpy.array(parameters["BFields"])
+    Bfields = numpy.array(parameters["BFields"]).tolist().tolist()
 prefixes = numpy.array(parameters["prefixes"].split(','), dtype=str)
 if type(parameters["wl_starts"])== str:
     wl_starts = numpy.array(parameters["wl_starts"].split(','), dtype=float)
